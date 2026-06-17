@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poisson Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0f141b; --panel:#171f29; --panel-2:#1d2733; --line:#2a3643; --line-soft:#222d39;
+    --text:#e7edf3; --muted:#8a97a6; --muted-2:#5f6c7b;
+    --gold:#2bb6bf; --gold-dim:#1c787f;
+    --green:#6ee0a0; --green-bg:rgba(110,224,160,.12);
+    --red:#f17a72; --red-bg:rgba(241,122,114,.12);
+    --heat:43,182,191;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--ink);color:var(--text);font-family:"Inter",system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;padding:28px 20px 80px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  .masthead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:8px;}
+  .brand h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0;}
+  .brand .sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:52ch;}
+  .mast-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+  .langbtn{font-family:"Space Grotesk",sans-serif;font-size:12px;font-weight:600;color:var(--gold);background:transparent;border:1px solid var(--gold-dim);border-radius:999px;padding:6px 16px;cursor:pointer;letter-spacing:.04em;}
+  .langbtn:hover{background:var(--gold-dim);color:#04181a;}
+  .stamp{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--gold);border:1px solid var(--gold-dim);border-radius:999px;padding:5px 12px;letter-spacing:.08em;white-space:nowrap;}
+  #matchEcho{margin-top:7px;font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--gold);}
+
+  .docs{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0 26px;}
+  @media (max-width:860px){.docs{grid-template-columns:1fr;}}
+  .doc{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:20px 22px;}
+  .doc .eyebrow{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;}
+  .doc h3{font-family:"Space Grotesk",sans-serif;font-size:18px;font-weight:600;margin:5px 0 14px;letter-spacing:-.01em;}
+  .doc h4{font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:600;color:var(--text);margin:16px 0 6px;}
+  .doc p{font-size:13px;color:var(--muted);margin:0 0 9px;}
+  .doc p b{color:var(--text);font-weight:600;}
+  .formula{background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 14px;font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--text);margin:8px 0;overflow-x:auto;line-height:1.7;}
+  .formula .c{color:var(--gold);}
+  .formula .d{color:var(--muted);}
+  .steps{list-style:none;counter-reset:s;padding:0;margin:0;}
+  .steps li{counter-increment:s;position:relative;padding:0 0 13px 34px;font-size:13px;color:var(--muted);}
+  .steps li:before{content:counter(s);position:absolute;left:0;top:-1px;width:22px;height:22px;border-radius:6px;background:var(--panel-2);border:1px solid var(--gold-dim);color:var(--gold);font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .steps li b{color:var(--text);font-weight:600;}
+  .note-soft{font-size:12px;color:var(--muted-2);border-top:1px solid var(--line-soft);padding-top:12px;margin-top:6px;}
+
+  .fit{margin-bottom:22px;}
+  .fit .body{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  @media (max-width:760px){.fit .body{grid-template-columns:1fr;}}
+  textarea#data{width:100%;min-height:150px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:"JetBrains Mono",monospace;font-size:12px;padding:11px 12px;resize:vertical;line-height:1.6;}
+  textarea#data:focus{outline:none;border-color:var(--gold-dim);}
+  .fit .fmt{font-size:11px;color:var(--muted-2);margin:7px 0 12px;font-family:"JetBrains Mono",monospace;}
+  .fit .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .fit .summary{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 14px;}
+  .fit .summary .kv{font-size:12px;color:var(--muted);}
+  .fit .summary .kv b{display:block;font-family:"JetBrains Mono",monospace;font-size:18px;font-weight:700;color:var(--gold);margin-top:2px;}
+  table.rate{width:100%;border-collapse:collapse;}
+  table.rate th{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted-2);text-align:right;padding:4px 8px;font-weight:500;}
+  table.rate th.l{text-align:left;}
+  table.rate td{font-size:12.5px;padding:5px 8px;border-top:1px solid var(--line-soft);text-align:right;font-family:"JetBrains Mono",monospace;}
+  table.rate td.l{text-align:left;font-family:"Inter";}
+  .pickrow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:14px;}
+  .pickrow .fld{flex:1;min-width:120px;}
+  .pickrow select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 10px;font-size:13px;font-family:"Inter";}
+  .lam-preview{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);margin-top:10px;}
+  .lam-preview b{color:var(--gold);}
+  .fiterr{font-size:12px;color:var(--red);margin-top:8px;}
+  .qbtn{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-family:"Inter";border-radius:8px;padding:8px 14px;cursor:pointer;}
+  .qbtn:hover{border-color:var(--gold-dim);color:var(--text);}
+  .qbtn.primary{background:var(--gold);color:#04181a;border-color:var(--gold);font-weight:700;}
+  .qbtn.primary:hover{filter:brightness(1.08);}
+  .prompt-box{margin:0 0 14px;}
+  .prompt-box summary{font-size:12.5px;color:var(--gold);cursor:pointer;padding:8px 0;user-select:none;}
+  .prompt-box summary:hover{filter:brightness(1.12);}
+  .prompt-warn{font-size:11.5px;color:var(--muted);background:var(--red-bg);border-radius:8px;padding:9px 12px;margin:6px 0 10px;line-height:1.55;}
+  .prompt-warn b{color:var(--text);}
+  textarea#promptText{width:100%;min-height:210px;background:var(--ink);border:1px solid var(--line);border-radius:8px;color:var(--muted);font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:11px 12px;resize:vertical;line-height:1.6;margin-bottom:8px;}
+  .copy-ok{font-size:12px;color:var(--green);margin-left:10px;}
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start;}
+  @media (max-width:860px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:20px;}
+  .card h2{font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 16px;}
+  .team-row{display:flex;gap:10px;margin-bottom:18px;}
+  .team-row .fld{flex:1;}
+  label.lbl{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);margin-bottom:6px;}
+  input[type=text]{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:"Inter";font-size:14px;padding:9px 11px;}
+  input[type=text]:focus{outline:none;border-color:var(--gold-dim);}
+  .slider-block{margin-bottom:20px;}
+  .slider-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .slider-head .name{font-size:13px;font-weight:500;}
+  .slider-head .val{font-family:"JetBrains Mono",monospace;font-size:16px;font-weight:700;color:var(--gold);}
+  input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:var(--line);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold);cursor:pointer;border:3px solid var(--panel);box-shadow:0 0 0 1px var(--gold-dim);}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold);cursor:pointer;border:3px solid var(--panel);}
+  .hint{font-size:11px;color:var(--muted-2);margin-top:7px;}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  .quick button{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);font-size:11px;font-family:"JetBrains Mono",monospace;border-radius:7px;padding:6px 10px;cursor:pointer;}
+  .quick button:hover{border-color:var(--gold-dim);color:var(--text);}
+  .quick button.primary{background:var(--gold);color:#04181a;border-color:var(--gold);font-weight:700;}
+  .quick button.primary:hover{filter:brightness(1.08);color:#04181a;}
+  .matrix-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+  .matrix-meta .modal{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);}
+  .matrix-meta .modal b{color:var(--gold);font-weight:700;}
+  .axis-label{font-size:11px;letter-spacing:.04em;color:var(--muted-2);}
+  .mtx-scroll{overflow-x:auto;}
+  table.mtx{border-collapse:collapse;font-family:"JetBrains Mono",monospace;margin:0 auto;}
+  table.mtx th{font-size:11px;color:var(--muted);font-weight:500;padding:5px;text-align:center;}
+  table.mtx th.corner{color:var(--gold);font-size:10px;}
+  table.mtx td{width:46px;height:40px;text-align:center;font-size:11px;border:1px solid var(--ink);position:relative;color:#0c1117;font-weight:500;transition:transform .08s;}
+  table.mtx td.dim{color:var(--muted-2);}
+  table.mtx td.peak{box-shadow:inset 0 0 0 2px var(--gold);}
+  .mkt-group{margin-bottom:22px;}
+  .mkt-group .gh{font-family:"Space Grotesk",sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0 0 10px;border-bottom:1px solid var(--line-soft);padding-bottom:7px;}
+  table.mkt{width:100%;border-collapse:collapse;}
+  table.mkt th{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted-2);font-weight:500;text-align:right;padding:4px 8px;}
+  table.mkt th.l{text-align:left;}
+  table.mkt td{padding:7px 8px;font-size:13px;border-top:1px solid var(--line-soft);text-align:right;font-family:"JetBrains Mono",monospace;}
+  table.mkt td.l{text-align:left;font-family:"Inter";color:var(--text);}
+  table.mkt td.modelp{color:var(--text);font-weight:500;}
+  .odds-in{width:74px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:"JetBrains Mono",monospace;font-size:12px;padding:5px 7px;text-align:center;}
+  .odds-in:focus{outline:none;border-color:var(--gold-dim);}
+  .ev{font-weight:700;} .ev.pos{color:var(--green);} .ev.neg{color:var(--red);} .ev.flat{color:var(--muted);}
+  .edge.pos{color:var(--green);} .edge.neg{color:var(--muted);}
+  .pill{display:inline-block;font-size:9.5px;letter-spacing:.05em;padding:2px 7px;border-radius:999px;margin-left:6px;font-family:"Inter";font-weight:600;vertical-align:middle;}
+  .pill.val{background:var(--green-bg);color:var(--green);}
+  .pill.skip{background:var(--red-bg);color:var(--red);}
+  .footnote{font-size:11px;color:var(--muted-2);margin-top:10px;}
+  .sens{margin-top:8px;}
+  .sens .row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center;}
+  .sens .row .c{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:8px;padding:9px 4px;}
+  .sens .c .l{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted-2);}
+  .sens .c .p{font-family:"JetBrains Mono",monospace;font-size:15px;font-weight:700;margin-top:3px;}
+  .sens .c.base{border-color:var(--gold-dim);}
+  .sens .c.base .p{color:var(--gold);}
+  .sens select{background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font-size:12px;font-family:"Inter";margin-bottom:12px;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="brand">
+      <h1>Poisson Bench · 摸鱼实验室🐟️</h1>
+      <div class="sub" data-i18n="sub"></div>
+      <div id="matchEcho"></div>
+    </div>
+    <div class="mast-right">
+      <button class="langbtn" id="langBtn">中文</button>
+    </div>
+  </div>
+
+  <div class="card fit">
+    <h2 data-i18n="fitH2"></h2>
+    <div class="body">
+      <div>
+        <label class="lbl" data-i18n="pasteLabel"></label>
+        <textarea id="data" spellcheck="false"></textarea>
+        <div class="fmt" data-i18n-html="fmt"></div>
+
+        <details class="prompt-box">
+          <summary data-i18n="promptSummary"></summary>
+          <p class="prompt-warn" data-i18n-html="promptWarn"></p>
+          <textarea id="promptText" readonly spellcheck="false"></textarea>
+          <button id="copyPrompt" class="qbtn" data-i18n="copyPrompt"></button>
+          <span id="copyOk" class="copy-ok"></span>
+        </details>
+
+        <div class="actions">
+          <button id="loadSample" class="qbtn" data-i18n="loadSample"></button>
+          <button id="doFit" class="qbtn primary" data-i18n="doFit"></button>
+          <span style="font-size:12px;color:var(--muted-2);" data-i18n="halfLife"></span>
+          <input type="range" id="halfLife" min="30" max="730" step="10" value="180" style="flex:1;min-width:90px;">
+          <span id="hlVal" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold);"></span>
+        </div>
+        <div class="fiterr" id="fitErr"></div>
+      </div>
+
+      <div>
+        <div class="summary">
+          <div class="kv"><span data-i18n="sumHfaLbl"></span><b id="sumHfa">—</b></div>
+          <div class="kv"><span data-i18n="sumRhoLbl"></span><b id="sumRho">—</b></div>
+          <div class="kv"><span data-i18n="sumNLbl"></span><b id="sumN">—</b></div>
+        </div>
+        <div id="ratesWrap"></div>
+        <div class="pickrow" id="pickRow" style="display:none;">
+          <div class="fld"><label class="lbl" data-i18n="homeLbl"></label><select id="pickHome"></select></div>
+          <div class="fld"><label class="lbl" data-i18n="awayLbl"></label><select id="pickAway"></select></div>
+        </div>
+        <div class="lam-preview" id="lamPreview"></div>
+        <div class="actions" id="applyWrap" style="display:none;margin-top:12px;">
+          <button id="applyFit" class="qbtn primary" data-i18n="applyFit"></button>
+        </div>
+      </div>
+    </div>
+    <p class="note-soft" data-i18n="fitNote"></p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2 data-i18n="ctrlH2"></h2>
+      <div class="fld" style="margin-bottom:16px;">
+        <label class="lbl" data-i18n="matchLbl"></label>
+        <input type="text" id="matchLabel" data-i18n-ph="matchPh">
+      </div>
+      <div class="team-row">
+        <div class="fld"><label class="lbl" data-i18n="homeNameLbl"></label><input type="text" id="homeName" data-i18n-ph="teamAPh"></div>
+        <div class="fld"><label class="lbl" data-i18n="awayNameLbl"></label><input type="text" id="awayName" data-i18n-ph="teamBPh"></div>
+      </div>
+      <div class="slider-block">
+        <div class="slider-head"><span class="name" id="lhName"></span><span class="val" id="lhVal">1.40</span></div>
+        <input type="range" id="lh" min="0.1" max="4" step="0.05" value="1.40">
+      </div>
+      <div class="slider-block">
+        <div class="slider-head"><span class="name" id="laName"></span><span class="val" id="laVal">1.10</span></div>
+        <input type="range" id="la" min="0.1" max="4" step="0.05" value="1.10">
+      </div>
+      <div class="slider-block">
+        <div class="slider-head"><span class="name" data-i18n="rhoName"></span><span class="val" id="rhoVal">-0.10</span></div>
+        <input type="range" id="rho" min="-0.20" max="0.20" step="0.01" value="-0.10">
+        <div class="hint" data-i18n-html="rhoHint"></div>
+      </div>
+      <div class="slider-block" style="margin-bottom:6px;">
+        <div class="slider-head"><span class="name" data-i18n="maxName"></span><span class="val" id="maxVal">6</span></div>
+        <input type="range" id="maxg" min="4" max="10" step="1" value="6">
+      </div>
+      <label class="lbl" style="margin-top:6px;" data-i18n="presetLbl"></label>
+      <div class="quick">
+        <button data-lh="1.4" data-la="1.1" data-i18n="presetHome"></button>
+        <button data-lh="1.4" data-la="1.4" data-i18n="presetEven"></button>
+        <button data-lh="2.3" data-la="0.6" data-i18n="presetSW"></button>
+      </div>
+      <label class="lbl" style="margin-top:16px;" data-i18n="opsLbl"></label>
+      <div class="quick">
+        <button id="loadDemo" class="primary" data-i18n="loadDemo"></button>
+        <button id="clearOdds" data-i18n="clearOdds"></button>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <div class="card">
+        <h2 data-i18n="matrixH2"></h2>
+        <div class="matrix-meta">
+          <span class="axis-label" id="axisLabel"></span>
+          <span class="modal"><span data-i18n="modalLbl"></span> <b id="modalScore">—</b> <span id="modalProb"></span></span>
+        </div>
+        <div class="mtx-scroll"><div id="matrix"></div></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="marketsH2"></h2>
+        <div id="markets"></div>
+        <div class="footnote" data-i18n="mktFoot"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="sensH2"></h2>
+        <div class="sens"><select id="sensPick"></select><div class="row" id="sensRow"></div></div>
+        <div class="footnote" id="sensNote"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCS: English -->
+  <div class="docs" id="docsEN" style="border-top:1px solid var(--line);padding-top:28px;margin-top:34px;">
+    <div class="doc">
+      <div class="eyebrow">Mathematics</div>
+      <h3>Model mathematics</h3>
+      <h4>1 · A team's goals ~ Poisson</h4>
+      <p>We treat a team's total goals as a Poisson random variable whose single parameter λ is its <b>expected goals</b>. The probability of scoring exactly k:</p>
+      <div class="formula">P(X = k) = <span class="c">e<sup>−λ</sup> · λ<sup>k</sup> / k!</span></div>
+      <h4>2 · Double Poisson: the joint distribution</h4>
+      <p>Home X ~ Poisson(λ<sub>h</sub>), away Y ~ Poisson(λ<sub>a</sub>). The base model <b>assumes independence</b>, so any scoreline's probability is the product of the two:</p>
+      <div class="formula">P(X=x, Y=y) = <span class="c">P(X=x) · P(Y=y)</span></div>
+      <p>Iterating over all (x, y) gives the scoreline matrix.</p>
+      <h4>3 · Dixon-Coles low-score correction</h4>
+      <p>The independence assumption is biased at low scores (it underrates 0-0, overrates 1-1). Dixon-Coles (1997) add a correlation parameter ρ and an adjustment τ that touches only four low-score cells:</p>
+      <div class="formula">τ(0,0) = <span class="c">1 − λ<sub>h</sub>λ<sub>a</sub>ρ</span>　　τ(1,1) = <span class="c">1 − ρ</span>
+τ(0,1) = <span class="c">1 + λ<sub>h</sub>ρ</span>　　　τ(1,0) = <span class="c">1 + λ<sub>a</sub>ρ</span>
+others (x,y) = <span class="d">1</span></div>
+      <div class="formula">P(x,y) = <span class="c">τ(x,y) · Poisson(x;λ<sub>h</sub>) · Poisson(y;λ<sub>a</sub>)</span></div>
+      <p>The corrected matrix is renormalized (all cells sum back to 1). ρ&lt;0 raises 0-0/1-0/0-1 and lowers 1-1; ρ=0 reverts to plain double Poisson.</p>
+      <h4>4 · From matrix to markets</h4>
+      <p>Each market is a sum over the cells that satisfy it:</p>
+      <div class="formula">Home win = Σ<sub>x&gt;y</sub>　Draw = Σ<sub>x=y</sub>　Away win = Σ<sub>x&lt;y</sub>
+Over 2.5 = Σ<sub>x+y≥3</sub>　Home −1.5 = Σ<sub>x−y≥2</sub>
+Both score = Σ<sub>x≥1 and y≥1</sub></div>
+      <h4>5 · Odds and EV</h4>
+      <p>Convert American odds A to decimal d and implied probability:</p>
+      <div class="formula">d = <span class="c">1 + A/100</span> (A&gt;0)　or　<span class="c">1 + 100/|A|</span> (A&lt;0)
+implied = <span class="c">100/(A+100)</span> or <span class="c">|A|/(|A|+100)</span></div>
+      <p>Use model probability p for expected value per $1 and the edge over the odds:</p>
+      <div class="formula">EV/$1 = <span class="c">p · d − 1</span>　　Edge = <span class="c">p − implied</span></div>
+      <p class="note-soft">The implied probabilities in one market sum to more than 100%; the excess is the bookmaker's margin (vig). Normalize them to get "fair" probabilities. Positive EV means the odds pay more than your probability estimate warrants.</p>
+    </div>
+    <div class="doc">
+      <div class="eyebrow">User Guide</div>
+      <h3>User guide</h3>
+      <ol class="steps">
+        <li><b>(Recommended) Fit λ from data first.</b> In ① at the top, paste recent results from the teams' league/competition (home, away, score, date) and click Fit; the app estimates each team's attack/defense and home advantage. Pick home and away, click Apply to model, and λ and ρ fill in automatically. With no data, drag the λ sliders manually — a rough start is the team's recent goals scored × the opponent's recent goals conceded ÷ league average.</li>
+        <li><b>Set Dixon-Coles ρ.</b> If unsure, leave it at −0.10 (a typical value in football data). To see plain double Poisson, set it to 0 and compare the 0-0 / 1-1 cells.</li>
+        <li><b>Read the scoreline matrix.</b> Rows are home goals, columns away goals; each cell is that score's probability, brighter = more likely, the outlined cell is the most likely score. This table holds all of the model's information.</li>
+        <li><b>Read the markets table.</b> "Model prob" is aggregated from the matrix. Type the bookmaker's price in the American-odds box (different every match — fill it yourself); implied probability, edge and EV/$1 compute automatically. Blank = no calculation. For a quick worked example, click "Load example · FRA vs SEN" on the left.</li>
+        <li><b>Read the colors.</b> Positive EV shows green with a <span style="color:var(--green);font-weight:600;">+EV</span> tag; negative shows red with SKIP. A positive edge means your probability exceeds the odds' implied probability — the source of any value.</li>
+        <li><b>Use λ sensitivity to self-check.</b> Pick a market and watch its probability as the home λ moves ±0.30. The more it swings, the more sensitive the market is to your λ and the less stable the conclusion.</li>
+      </ol>
+      <h4>Reading EV / Edge</h4>
+      <p>EV/$1 is the long-run average profit or loss per $1 on this bet. +$0.05 means averaging five cents profit per bet; −$0.05 means losing five cents. Edge is the percentage-point gap: your probability minus the odds' implied probability.</p>
+    </div>
+  </div>
+
+  <!-- DOCS: 中文 -->
+  <div class="docs" id="docsZH" style="display:none;border-top:1px solid var(--line);padding-top:28px;margin-top:34px;">
+    <div class="doc">
+      <div class="eyebrow">Mathematics</div>
+      <h3>模型数学原理</h3>
+      <h4>1 · 单队进球 ~ 泊松分布</h4>
+      <p>假设一支球队整场进球数是泊松随机变量，唯一参数 λ 是它的<b>预期进球数</b>。进 k 球的概率:</p>
+      <div class="formula">P(X = k) = <span class="c">e<sup>−λ</sup> · λ<sup>k</sup> / k!</span></div>
+      <h4>2 · 双泊松:两队联合分布</h4>
+      <p>主队 X ~ Poisson(λ<sub>h</sub>)，客队 Y ~ Poisson(λ<sub>a</sub>)。基础模型<b>假设两者独立</b>，于是任一比分的概率是两个泊松概率相乘:</p>
+      <div class="formula">P(X=x, Y=y) = <span class="c">P(X=x) · P(Y=y)</span></div>
+      <p>遍历所有 (x, y) 就得到那张比分概率矩阵。</p>
+      <h4>3 · Dixon-Coles 低比分修正</h4>
+      <p>独立假设在低比分上有系统偏差(低估 0-0、高估 1-1)。DC(1997)引入相关参数 ρ 和调整函数 τ,只改动四个低比分格子:</p>
+      <div class="formula">τ(0,0) = <span class="c">1 − λ<sub>h</sub>λ<sub>a</sub>ρ</span>　　τ(1,1) = <span class="c">1 − ρ</span>
+τ(0,1) = <span class="c">1 + λ<sub>h</sub>ρ</span>　　　τ(1,0) = <span class="c">1 + λ<sub>a</sub>ρ</span>
+其余 (x,y) = <span class="d">1</span></div>
+      <div class="formula">P(x,y) = <span class="c">τ(x,y) · Poisson(x;λ<sub>h</sub>) · Poisson(y;λ<sub>a</sub>)</span></div>
+      <p>修正后矩阵会重新归一化(全部格子之和回到 1)。ρ&lt;0 抬高 0-0/1-0/0-1、压低 1-1；ρ=0 即退回纯双泊松。</p>
+      <h4>4 · 从矩阵到盘口</h4>
+      <p>每个盘口都是对满足条件的格子求和:</p>
+      <div class="formula">主队胜 = Σ<sub>x&gt;y</sub>　平 = Σ<sub>x=y</sub>　客胜 = Σ<sub>x&lt;y</sub>
+大 2.5 = Σ<sub>x+y≥3</sub>　主队 −1.5 = Σ<sub>x−y≥2</sub>
+双方进球 = Σ<sub>x≥1 且 y≥1</sub></div>
+      <h4>5 · 赔率换算与 EV</h4>
+      <p>美式赔率 A 转十进制 d 与隐含概率:</p>
+      <div class="formula">d = <span class="c">1 + A/100</span> (A&gt;0)　或　<span class="c">1 + 100/|A|</span> (A&lt;0)
+隐含 = <span class="c">100/(A+100)</span> 或 <span class="c">|A|/(|A|+100)</span></div>
+      <p>用模型概率 p 算每 $1 的期望值,以及相对赔率的优势:</p>
+      <div class="formula">EV/$1 = <span class="c">p · d − 1</span>　　Edge = <span class="c">p − 隐含概率</span></div>
+      <p class="note-soft">同一市场各项隐含概率之和会大于 100%,多出来的部分就是庄家的水位(vig)。要算"公平概率"可把它们归一化。EV 为正意味着赔率给的回报超过了你对真实概率的估计。</p>
+    </div>
+    <div class="doc">
+      <div class="eyebrow">User Guide</div>
+      <h3>使用说明书</h3>
+      <ol class="steps">
+        <li><b>(推荐)先用数据拟合 λ。</b> 在顶部「① 用历史结果拟合」里粘贴两队所在联赛/赛事的近期比赛结果(主队，客队，比分，日期)，点「拟合」，程序会估出每队攻防强度与主场优势；选好主客队后点「代入下方模型」，λ 和 ρ 自动填好。没有数据时，也可在下方手动拖 λ 滑块——粗估可用「该队近期场均进球 × 对手近期场均失球 ÷ 联赛平均」。</li>
+        <li><b>调 Dixon-Coles 的 ρ。</b> 不确定就保留 −0.10(足球数据里的典型值)。想看纯双泊松的样子，把它拨到 0，对比 0-0 / 1-1 这几格的变化。</li>
+        <li><b>读比分概率矩阵。</b> 行是主队进球、列是客队进球，每格是该比分的概率，颜色越亮越可能，描边那格是最可能比分。这张表包含了模型的全部信息。</li>
+        <li><b>读盘口表。</b> 「模型概率」是矩阵聚合出的结果。在「美式赔率」框里填庄家挂出的赔率(每场比赛各不相同，自己填)，右侧自动算出隐含概率、Edge 和 EV/$1。框留空则不计算。想快速看一个完整例子，点左侧「载入示例 · FRA vs SEN」。</li>
+        <li><b>看颜色判断。</b> EV 为正显示绿色并标 <span style="color:var(--green);font-weight:600;">+EV</span>，为负显示红色并标 SKIP。Edge 为正表示你的概率高于赔率隐含，是优势的来源。</li>
+        <li><b>用 λ 敏感性自检。</b> 选一个盘口，看主队 λ 上下浮动 ±0.30 时概率怎么变。变化越剧烈，说明该盘口对你的 λ 估计越敏感、结论越不稳。</li>
+      </ol>
+      <h4>怎么读 EV / Edge</h4>
+      <p>EV/$1 是「这一注长期平均每 $1 赚或赔多少」。+$0.05 表示长期每注平均赚五美分，−$0.05 表示平均赔五美分。Edge 是百分点差:你的概率减去赔率隐含概率。</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  let lang = 'en';
+
+  // ---------------- i18n dictionary ----------------
+  const T = {
+    en:{
+      fitH2:"① Fit λ from past results (Dixon-Coles)",
+      pasteLabel:"Paste recent match results",
+      fmt:"One match per line: home, away, home goals, away goals, date (optional YYYY-MM-DD)<br>Comma or tab separated. Dates enable time-decay weighting.",
+      promptSummary:"No data? Copy a prompt to have a web-connected AI find it ▾",
+      promptWarn:"⚠ Use an AI that can <b>search the web</b> (and check its sources). Asking a model to recall scores from memory makes it fabricate data that looks perfect but is wrong — bad input breaks the whole model.",
+      copyPrompt:"Copy prompt",
+      loadSample:"Load sample data",
+      doFit:"Fit",
+      halfLife:"Half-life",
+      dayUnit:" days",
+      sumHfaLbl:"Home advantage", sumRhoLbl:"Fitted ρ", sumNLbl:"Teams / matches",
+      homeLbl:"Home", awayLbl:"Away",
+      applyFit:"② Apply to model below →",
+      ctrlH2:"② Parameters · manual",
+      matchLbl:"Match / competition (optional)", matchPh:"e.g. EPL · Arsenal vs Chelsea",
+      homeNameLbl:"Home / Team A", awayNameLbl:"Away / Team B",
+      teamAPh:"Team A", teamBPh:"Team B",
+      rhoName:"Dixon-Coles ρ (low-score correlation)",
+      rhoHint:"ρ&lt;0 raises 1-0/0-1/0-0 and lowers 1-1, correcting goal dependence. Set 0 for plain double Poisson.",
+      maxName:"Max goals",
+      presetLbl:"Quick λ presets",
+      presetHome:"Home edge 1.4 / 1.1", presetEven:"Even 1.4 / 1.4", presetSW:"Strong/weak 2.3 / 0.6",
+      opsLbl:"Actions",
+      loadDemo:"Load example · FRA vs SEN", clearOdds:"Clear all odds",
+      matrixH2:"Scoreline probability matrix",
+      modalLbl:"Most likely score",
+      marketsH2:"Markets · probability & EV",
+      mktFoot:"EV/$1 = model prob × decimal odds − 1. Green = positive EV (worth backing under this model). Edge = model prob − implied prob. Leave odds blank to skip EV.",
+      sensH2:"λ sensitivity",
+      lamLabel:"Predicted λ", sameSide:"Home and away can't be the same",
+      errFew:"Need at least 4 valid matches (each line: home, away, home goals, away goals).",
+      errFit:"Fit failed: ",
+      egExpected:"expected goals λ",
+      axis:(h,a)=>`Row = ${h} goals · Col = ${a} goals`,
+      sensNote:(h,name)=>`See how "${name}" shifts as ${h}'s λ moves ±0.30 — a reminder of how fragile these numbers are.`,
+      rTeam:"Team", rAtk:"Attack", rDef:"Defense",
+      mh:["Market","Model prob","American odds","Implied","Edge","EV per $1"],
+      mk:{win:" win", draw:"Draw", over:"Over", under:"Under", btts:"Both teams score", nobtts:"Not both score"},
+      groups:{result:"Result 1X2", totals:"Total goals O/U", teamGoals:"Team goals", ah:"Asian handicap −1.5/+1.5", btts:"Both teams to score"},
+      prompt:`Please collect football match data for statistical modeling. Follow these rules strictly:
+
+1. You MUST search the web for real results. Do not answer from memory. If you cannot search, or cannot verify a match's real score, skip it — never guess or fabricate. Fewer verified matches is better than wrong data.
+2. What to collect — replace the brackets with your two teams and competition:
+   The last ~8-10 results each for [Team A] and [Team B] in [league / competition].
+   To keep the two teams comparable, try to include matches within the same league/competition against shared opponents.
+3. Count regulation-time scores only (90 min + stoppage); exclude extra time and penalty shootouts.
+4. Output format — one match per line, comma-separated, in this order:
+   home, away, home goals, away goals, date (YYYY-MM-DD)
+   Example:
+   Arsenal, Chelsea, 2, 1, 2026-05-24
+5. Output ONLY the data lines: no header, no explanation, no Markdown code block, no extra text.
+6. Use the real match date (the app uses it for time-decay weighting).
+
+Verify on the web first, then paste only the correctly formatted data.`
+    },
+    zh:{
+      fitH2:"① 用历史结果拟合 λ（Dixon-Coles）",
+      pasteLabel:"粘贴近期比赛结果",
+      fmt:"每行一场：主队, 客队, 主队进球, 客队进球, 日期(可选 YYYY-MM-DD)<br>逗号或制表符分隔。日期用于时间衰减加权。",
+      promptSummary:"没有数据？复制提示词，让 AI 帮你找 ▾",
+      promptWarn:"⚠ 务必用<b>能联网搜索</b>的 AI(并核对它给的来源)。让模型凭记忆报比分,它会编造看似完美、实则错误的数据——错误输入会让整个模型失效。",
+      copyPrompt:"复制提示词",
+      loadSample:"填入示例数据",
+      doFit:"拟合",
+      halfLife:"半衰期",
+      dayUnit:" 天",
+      sumHfaLbl:"主场优势", sumRhoLbl:"拟合 ρ", sumNLbl:"球队 / 场次",
+      homeLbl:"主队", awayLbl:"客队",
+      applyFit:"② 代入下方模型 →",
+      ctrlH2:"② 参数 · 手动调整",
+      matchLbl:"比赛 / 赛事（可选）", matchPh:"例如 英超 · 阿森纳 vs 切尔西",
+      homeNameLbl:"主队 / 队伍 A", awayNameLbl:"客队 / 队伍 B",
+      teamAPh:"队伍 A", teamBPh:"队伍 B",
+      rhoName:"Dixon-Coles ρ（低比分相关）",
+      rhoHint:"ρ&lt;0 抬高 1-0/0-1/0-0、压低 1-1，修正\u201c进球非独立\u201d。设 0 即退回基础双泊松。",
+      maxName:"比分上限",
+      presetLbl:"快速代入 λ",
+      presetHome:"主队微优 1.4 / 1.1", presetEven:"均势 1.4 / 1.4", presetSW:"强弱 2.3 / 0.6",
+      opsLbl:"操作",
+      loadDemo:"载入示例 · FRA vs SEN", clearOdds:"清空所有赔率",
+      matrixH2:"比分概率矩阵",
+      modalLbl:"最可能比分",
+      marketsH2:"盘口 · 概率与 EV",
+      mktFoot:"EV/$1 = 模型概率 × 十进制赔率 − 1。绿色 = 正 EV(此模型下值得买)。Edge = 模型概率 − 赔率隐含概率。赔率框留空则不算 EV。",
+      sensH2:"λ 敏感性",
+      lamLabel:"预测 λ", sameSide:"主客队不能相同",
+      errFew:"至少需要 4 场有效比赛(每行：主队, 客队, 主队进球, 客队进球)。",
+      errFit:"拟合失败：",
+      egExpected:"预期进球 λ",
+      axis:(h,a)=>`行 = ${h} 进球　·　列 = ${a} 进球`,
+      sensNote:(h,name)=>`看 ${h} 的 λ 上下浮动 ±0.30 时,「${name}」概率怎么变——提醒你这些数字有多脆。`,
+      rTeam:"球队", rAtk:"进攻", rDef:"防守",
+      mh:["盘口","模型概率","美式赔率","隐含","Edge","EV/$1"],
+      mk:{win:" 胜", draw:"平局", over:"大", under:"小", btts:"双方都进", nobtts:"非双方都进"},
+      groups:{result:"赛果 1X2", totals:"总进球大小", teamGoals:"球队进球数", ah:"让球 (Asian -1.5/+1.5)", btts:"双方进球 BTTS"},
+      prompt:`请帮我收集足球比赛数据,用于统计建模。请严格遵守以下要求:
+
+1. 必须联网搜索真实结果,不要凭记忆作答。如果你无法联网,或无法确认某场比赛的真实比分,就跳过那场——绝不要猜测或编造。宁可少给几场,也不要给错误数据。
+2. 收集对象:把下面方括号替换成你要分析的两队和赛事——
+   [球队A] 和 [球队B] 在 [联赛/赛事] 最近各约 8-10 场的比赛结果。
+   为了让两队强度可比,请尽量包含同一联赛/赛事内、它们各自对手的相关比赛(对手有重叠最好)。
+3. 只统计常规时间(90 分钟 + 补时)的比分,不含加时和点球大战。
+4. 输出格式:每行一场,严格用半角逗号分隔,顺序为:
+   主队, 客队, 主队进球, 客队进球, 日期(YYYY-MM-DD)
+   例如:
+   Arsenal, Chelsea, 2, 1, 2026-05-24
+5. 只输出数据行本身:不要表头、不要解释、不要 Markdown 代码块、不要任何多余文字。
+6. 日期用真实比赛日期(程序会用它做时间衰减加权)。
+
+请先联网核实,再把符合格式的数据贴出来。`
+    }
+  };
+  const L = ()=>T[lang];
+
+  // ---------------- math ----------------
+  function poisson(k, lam){ let lp=-lam+k*Math.log(lam); for(let i=2;i<=k;i++) lp-=Math.log(i); return Math.exp(lp); }
+  function dcTau(x,y,lh,la,rho){
+    if(x===0&&y===0) return 1-lh*la*rho;
+    if(x===0&&y===1) return 1+lh*rho;
+    if(x===1&&y===0) return 1+la*rho;
+    if(x===1&&y===1) return 1-rho;
+    return 1;
+  }
+  function buildMatrix(lh,la,rho,maxg){
+    const m=[]; let total=0;
+    for(let x=0;x<=maxg;x++){ m[x]=[]; for(let y=0;y<=maxg;y++){ let p=poisson(x,lh)*poisson(y,la)*dcTau(x,y,lh,la,rho); if(p<0)p=0; m[x][y]=p; total+=p; } }
+    for(let x=0;x<=maxg;x++) for(let y=0;y<=maxg;y++) m[x][y]/=total;
+    return m;
+  }
+  function agg(m, fn){ let s=0; const n=m.length; for(let x=0;x<n;x++) for(let y=0;y<n;y++) if(fn(x,y)) s+=m[x][y]; return s; }
+
+  const MARKETS = [
+    {gk:"result", items:[
+      {id:"home", lbl:(t,M)=>t.h+M.win, fn:(x,y)=>x>y},
+      {id:"draw", lbl:(t,M)=>M.draw, fn:(x,y)=>x===y},
+      {id:"away", lbl:(t,M)=>t.a+M.win, fn:(x,y)=>x<y},
+    ]},
+    {gk:"totals", items:[
+      {id:"o15", lbl:(t,M)=>M.over+" 1.5", fn:(x,y)=>x+y>=2},
+      {id:"u15", lbl:(t,M)=>M.under+" 1.5", fn:(x,y)=>x+y<=1},
+      {id:"o25", lbl:(t,M)=>M.over+" 2.5", fn:(x,y)=>x+y>=3},
+      {id:"u25", lbl:(t,M)=>M.under+" 2.5", fn:(x,y)=>x+y<=2},
+      {id:"o35", lbl:(t,M)=>M.over+" 3.5", fn:(x,y)=>x+y>=4},
+      {id:"u35", lbl:(t,M)=>M.under+" 3.5", fn:(x,y)=>x+y<=3},
+    ]},
+    {gk:"teamGoals", items:[
+      {id:"ho15", lbl:(t,M)=>t.h+" "+M.over+" 1.5", fn:(x,y)=>x>=2},
+      {id:"ho25", lbl:(t,M)=>t.h+" "+M.over+" 2.5", fn:(x,y)=>x>=3},
+      {id:"ao05", lbl:(t,M)=>t.a+" "+M.over+" 0.5", fn:(x,y)=>y>=1},
+      {id:"ao15", lbl:(t,M)=>t.a+" "+M.over+" 1.5", fn:(x,y)=>y>=2},
+    ]},
+    {gk:"ah", items:[
+      {id:"hm15", lbl:(t)=>t.h+" -1.5", fn:(x,y)=>x-y>=2},
+      {id:"ap15", lbl:(t)=>t.a+" +1.5", fn:(x,y)=>x-y<=1},
+    ]},
+    {gk:"btts", items:[
+      {id:"btts", lbl:(t,M)=>M.btts, fn:(x,y)=>x>=1&&y>=1},
+      {id:"nobtts", lbl:(t,M)=>M.nobtts, fn:(x,y)=>!(x>=1&&y>=1)},
+    ]},
+  ];
+
+  function parseAm(s){ if(s===null) return null; s=(""+s).trim().replace(/^\+/,''); if(s==='') return null; const v=Number(s); if(!isFinite(v)||v===0) return null; return v; }
+  function amToDecimal(v){ return v>0 ? 1+v/100 : 1+100/Math.abs(v); }
+  function amToImplied(v){ return v>0 ? 100/(v+100) : Math.abs(v)/(Math.abs(v)+100); }
+
+  const oddsStore = {};
+  MARKETS.forEach(g=>g.items.forEach(it=>{ oddsStore[it.id]=""; }));
+
+  const DEMO = { label:"World Cup 2026 · France vs Senegal", h:"France", a:"Senegal", lh:1.90, la:0.70,
+    odds:{home:"-210",draw:"+350",away:"+600",o25:"-135",u25:"+105",ho25:"+165",hm15:"+130",ap15:"-165"} };
+
+  function teams(){ return {h:$('homeName').value||(lang==='zh'?'A':'A'), a:$('awayName').value||'B'}; }
+
+  function heatColor(p, pmax){ const t = pmax>0 ? Math.min(1, Math.sqrt(p/pmax)) : 0; const a=0.06+t*0.92; return `rgba(var(--heat),${a.toFixed(3)})`; }
+
+  function render(){
+    const lh=parseFloat($('lh').value), la=parseFloat($('la').value), rho=parseFloat($('rho').value), maxg=parseInt($('maxg').value);
+    const t=teams(); const D=L();
+    $('lhVal').textContent=lh.toFixed(2); $('laVal').textContent=la.toFixed(2);
+    $('rhoVal').textContent=rho.toFixed(2); $('maxVal').textContent=maxg;
+    $('lhName').textContent=t.h+' '+D.egExpected;
+    $('laName').textContent=t.a+' '+D.egExpected;
+    $('axisLabel').textContent=D.axis(t.h,t.a);
+
+    const m=buildMatrix(lh,la,rho,maxg);
+    let pmax=0, peak=[0,0];
+    for(let x=0;x<=maxg;x++)for(let y=0;y<=maxg;y++) if(m[x][y]>pmax){pmax=m[x][y];peak=[x,y];}
+    let html='<table class="mtx"><tr><th class="corner">'+t.h+'\\'+t.a+'</th>';
+    for(let y=0;y<=maxg;y++) html+='<th>'+y+'</th>';
+    html+='</tr>';
+    for(let x=0;x<=maxg;x++){
+      html+='<tr><th>'+x+'</th>';
+      for(let y=0;y<=maxg;y++){
+        const p=m[x][y]; const isPeak=(x===peak[0]&&y===peak[1]); const pct=p*100;
+        const lbl= pct>=0.45 ? pct.toFixed(pct<10?1:0) : ''; const dim = pct<0.45 ? ' dim' : '';
+        html+='<td class="'+(isPeak?'peak':'')+dim+'" style="background:'+heatColor(p,pmax)+'">'+lbl+'</td>';
+      }
+      html+='</tr>';
+    }
+    html+='</table>';
+    $('matrix').innerHTML=html;
+    $('modalScore').textContent=peak[0]+'–'+peak[1];
+    $('modalProb').textContent='('+(pmax*100).toFixed(1)+'%)';
+
+    let mh='';
+    MARKETS.forEach(g=>{
+      mh+='<div class="mkt-group"><div class="gh">'+D.groups[g.gk]+'</div>';
+      mh+='<table class="mkt"><tr><th class="l">'+D.mh[0]+'</th><th>'+D.mh[1]+'</th><th>'+D.mh[2]+'</th><th>'+D.mh[3]+'</th><th>'+D.mh[4]+'</th><th>'+D.mh[5]+'</th></tr>';
+      g.items.forEach(it=>{
+        const p=agg(m,it.fn); const am=parseAm(oddsStore[it.id]);
+        let impCell='—', edgeCell='—', evCell='—', pill='';
+        if(am!==null){
+          const imp=amToImplied(am), dec=amToDecimal(am); const ev=p*dec-1; const edge=(p-imp)*100;
+          impCell=(imp*100).toFixed(1)+'%';
+          edgeCell='<span class="edge '+(edge>0?'pos':'neg')+'">'+(edge>=0?'+':'')+edge.toFixed(1)+'</span>';
+          const cls = ev>0.005?'pos':(ev<-0.005?'neg':'flat');
+          evCell='<span class="ev '+cls+'">'+(ev>=0?'+':'−')+'$'+Math.abs(ev).toFixed(3)+'</span>';
+          pill = ev>0.005?'<span class="pill val">+EV</span>':'<span class="pill skip">SKIP</span>';
+        }
+        mh+='<tr><td class="l">'+it.lbl(t,D.mk)+pill+'</td>'
+          +'<td class="modelp">'+(p*100).toFixed(1)+'%</td>'
+          +'<td><input class="odds-in" data-mid="'+it.id+'" value="'+(oddsStore[it.id]||'')+'" placeholder="—"></td>'
+          +'<td>'+impCell+'</td><td>'+edgeCell+'</td><td>'+evCell+'</td></tr>';
+      });
+      mh+='</table></div>';
+    });
+    $('markets').innerHTML=mh;
+    document.querySelectorAll('.odds-in').forEach(inp=>{
+      inp.addEventListener('input',e=>{ oddsStore[e.target.dataset.mid]=e.target.value; renderMarketsOnly(); });
+    });
+    renderSens(lh,la,rho,maxg,t);
+  }
+
+  function renderMarketsOnly(){
+    const lh=parseFloat($('lh').value), la=parseFloat($('la').value), rho=parseFloat($('rho').value), maxg=parseInt($('maxg').value);
+    const t=teams(); const D=L(); const m=buildMatrix(lh,la,rho,maxg);
+    MARKETS.forEach(g=>g.items.forEach(it=>{
+      const p=agg(m,it.fn); const row=document.querySelector('.odds-in[data-mid="'+it.id+'"]'); if(!row) return;
+      const tr=row.closest('tr'); const cells=tr.querySelectorAll('td');
+      const am=parseAm(oddsStore[it.id]); const baseName=it.lbl(t,D.mk);
+      if(am!==null){
+        const imp=amToImplied(am), dec=amToDecimal(am); const ev=p*dec-1, edge=(p-imp)*100;
+        cells[3].textContent=(imp*100).toFixed(1)+'%';
+        cells[4].innerHTML='<span class="edge '+(edge>0?'pos':'neg')+'">'+(edge>=0?'+':'')+edge.toFixed(1)+'</span>';
+        const cls=ev>0.005?'pos':(ev<-0.005?'neg':'flat');
+        cells[5].innerHTML='<span class="ev '+cls+'">'+(ev>=0?'+':'−')+'$'+Math.abs(ev).toFixed(3)+'</span>';
+        cells[0].innerHTML=baseName+(ev>0.005?'<span class="pill val">+EV</span>':'<span class="pill skip">SKIP</span>');
+      }else{ cells[3].textContent='—';cells[4].textContent='—';cells[5].textContent='—'; cells[0].innerHTML=baseName; }
+    }));
+    renderSens(lh,la,rho,maxg,t);
+  }
+
+  function buildSensOptions(){
+    const sel=$('sensPick'); const t=teams(); const D=L(); sel.innerHTML='';
+    MARKETS.forEach(g=>g.items.forEach(it=>{
+      const o=document.createElement('option'); o.value=it.id; o.textContent=D.groups[g.gk]+' · '+it.lbl(t,D.mk); sel.appendChild(o);
+    }));
+    sel.value='ho25';
+  }
+  function renderSens(lh,la,rho,maxg,t){
+    const id=$('sensPick').value; const D=L(); let item=null,gk=null;
+    MARKETS.forEach(g=>g.items.forEach(it=>{if(it.id===id){item=it;gk=g.gk;}}));
+    if(!item){$('sensRow').innerHTML='';return;}
+    const offs=[-0.30,-0.15,0,0.15,0.30]; let h='';
+    offs.forEach(o=>{
+      const v=Math.max(0.1,lh+o); const m=buildMatrix(v,la,rho,maxg); const p=agg(m,item.fn)*100; const base=o===0;
+      h+='<div class="c'+(base?' base':'')+'"><div class="l">λ '+v.toFixed(2)+'</div><div class="p" style="'+(base?'':'color:var(--text)')+'">'+p.toFixed(1)+'%</div></div>';
+    });
+    $('sensRow').innerHTML=h;
+    $('sensNote').textContent=D.sensNote(t.h, item.lbl(t,D.mk));
+  }
+
+  // ---------------- Dixon-Coles fit ----------------
+  let FIT=null;
+  const SAMPLE=
+`Arsenal, Chelsea, 2, 1, 2026-05-24
+Liverpool, Arsenal, 1, 1, 2026-05-17
+Chelsea, City, 0, 2, 2026-05-11
+City, Liverpool, 3, 1, 2026-05-04
+Arsenal, City, 2, 2, 2026-04-27
+Liverpool, Chelsea, 4, 0, 2026-04-20
+Chelsea, Arsenal, 1, 3, 2026-04-13
+City, Arsenal, 1, 0, 2026-04-06
+Liverpool, City, 2, 2, 2026-03-30
+Arsenal, Liverpool, 0, 0, 2026-03-23
+Chelsea, Liverpool, 1, 2, 2026-03-16
+City, Chelsea, 4, 1, 2026-03-09
+Arsenal, Chelsea, 3, 0, 2026-03-02
+Liverpool, Arsenal, 2, 1, 2026-02-23
+City, Liverpool, 1, 1, 2026-02-16
+Chelsea, City, 0, 0, 2026-02-09`;
+
+  function parseData(txt){
+    const rows=[];
+    txt.split(/\n/).forEach(line=>{
+      const l=line.trim(); if(!l) return;
+      const p=l.split(/[,\t]+/).map(s=>s.trim()); if(p.length<4) return;
+      const hg=Number(p[2]), ag=Number(p[3]); if(!isFinite(hg)||!isFinite(ag)) return;
+      rows.push({home:p[0],away:p[1],hg:Math.round(hg),ag:Math.round(ag),date:p[4]||null});
+    });
+    return rows;
+  }
+  function fitDC(matches, halfLife){
+    const reg=0.05, iters=4000, lr=0.3;
+    const tm=[...new Set(matches.flatMap(m=>[m.home,m.away]))].sort();
+    const idx={}; tm.forEach((t,i)=>idx[t]=i); const N=tm.length;
+    let w=matches.map(()=>1);
+    const haveDates=matches.every(m=>m.date && !isNaN(+new Date(m.date)));
+    if(haveDates && halfLife){
+      const xi=Math.log(2)/halfLife; const maxD=Math.max(...matches.map(m=>+new Date(m.date)));
+      w=matches.map(m=>Math.exp(-xi*((maxD-+new Date(m.date))/86400000)));
+    }
+    const W=w.reduce((a,b)=>a+b,0);
+    const meanG=matches.reduce((s,m)=>s+m.hg+m.ag,0)/(2*matches.length);
+    let base=Math.log(Math.max(0.2,meanG)), hfa=0.1;
+    const atk=new Array(N).fill(0), def=new Array(N).fill(0);
+    for(let it=0;it<iters;it++){
+      let gB=0,gH=0; const gA=new Array(N).fill(0), gD=new Array(N).fill(0);
+      for(let k=0;k<matches.length;k++){
+        const m=matches[k],h=idx[m.home],a=idx[m.away],ww=w[k];
+        let lam=Math.exp(base+hfa+atk[h]-def[a]); let g=ww*(m.hg-lam); gB+=g; gH+=g; gA[h]+=g; gD[a]-=g;
+        lam=Math.exp(base+atk[a]-def[h]); g=ww*(m.ag-lam); gB+=g; gA[a]+=g; gD[h]-=g;
+      }
+      for(let i=0;i<N;i++){ gA[i]-=reg*atk[i]*W; gD[i]-=reg*def[i]*W; }
+      base+=lr*gB/W; hfa+=lr*gH/W;
+      for(let i=0;i<N;i++){ atk[i]+=lr*gA[i]/W; def[i]+=lr*gD[i]/W; }
+    }
+    const mA=atk.reduce((a,b)=>a+b,0)/N, mD=def.reduce((a,b)=>a+b,0)/N;
+    for(let i=0;i<N;i++){atk[i]-=mA; def[i]-=mD;} base+=mA-mD;
+    function tau(x,y,lh,la,r){ if(x===0&&y===0)return 1-lh*la*r; if(x===0&&y===1)return 1+lh*r; if(x===1&&y===0)return 1+la*r; if(x===1&&y===1)return 1-r; return 1; }
+    function lam(home,away){ const h=idx[home],a=idx[away]; return {lh:Math.exp(base+hfa+atk[h]-def[a]), la:Math.exp(base+atk[a]-def[h])}; }
+    let bestR=0,bestLL=-1e18;
+    for(let r=-0.2;r<=0.2001;r+=0.005){
+      let ll=0,ok=true;
+      for(let k=0;k<matches.length;k++){ const m=matches[k]; if(m.hg<=1&&m.ag<=1){ const Lm=lam(m.home,m.away); const tt=tau(m.hg,m.ag,Lm.lh,Lm.la,r); if(tt<=0){ok=false;break;} ll+=w[k]*Math.log(tt); } }
+      if(ok&&ll>bestLL){bestLL=ll;bestR=r;}
+    }
+    return {teams:tm,idx,base,hfa,atk,def,rho:bestR,lambdas:lam,homeMult:Math.exp(hfa),n:matches.length};
+  }
+  function renderFit(){
+    if(!FIT) return; const D=L();
+    $('sumHfa').textContent='×'+FIT.homeMult.toFixed(2);
+    $('sumRho').textContent=FIT.rho.toFixed(3);
+    $('sumN').textContent=FIT.teams.length+' / '+FIT.n;
+    const order=FIT.teams.map((t,i)=>({t,a:FIT.atk[i],d:FIT.def[i]})).sort((x,y)=>y.a-x.a);
+    let h='<table class="rate"><tr><th class="l">'+D.rTeam+'</th><th>'+D.rAtk+'</th><th>'+D.rDef+'</th></tr>';
+    order.forEach(o=>{ h+='<tr><td class="l">'+o.t+'</td><td>'+(o.a>=0?'+':'')+o.a.toFixed(2)+'</td><td>'+(o.d>=0?'+':'')+o.d.toFixed(2)+'</td></tr>'; });
+    h+='</table>'; $('ratesWrap').innerHTML=h;
+    const opt=FIT.teams.map(t=>'<option>'+t+'</option>').join('');
+    $('pickHome').innerHTML=opt; $('pickAway').innerHTML=opt;
+    if(FIT.teams.length>1) $('pickAway').selectedIndex=1;
+    $('pickRow').style.display='flex'; $('applyWrap').style.display='flex';
+    updateLamPreview();
+  }
+  function updateLamPreview(){
+    if(!FIT) return; const D=L(); const home=$('pickHome').value, away=$('pickAway').value;
+    if(home===away){ $('lamPreview').innerHTML='<span style="color:var(--red)">'+D.sameSide+'</span>'; return; }
+    const Lm=FIT.lambdas(home,away);
+    $('lamPreview').innerHTML=D.lamLabel+'：'+home+' <b>'+Lm.lh.toFixed(2)+'</b> · '+away+' <b>'+Lm.la.toFixed(2)+'</b>';
+  }
+  function applyFit(){
+    if(!FIT) return; const home=$('pickHome').value, away=$('pickAway').value; if(home===away) return;
+    const Lm=FIT.lambdas(home,away);
+    $('homeName').value=home; $('awayName').value=away;
+    $('lh').value=Math.min(4,Math.max(0.1,Lm.lh)).toFixed(2);
+    $('la').value=Math.min(4,Math.max(0.1,Lm.la)).toFixed(2);
+    $('rho').value=FIT.rho.toFixed(2);
+    buildSensOptions(); render();
+    document.querySelector('.grid').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function runFit(){
+    const rows=parseData($('data').value); $('fitErr').textContent='';
+    if(rows.length<4){ $('fitErr').textContent=L().errFew; return; }
+    try{ FIT=fitDC(rows, parseInt($('halfLife').value)); renderFit(); }
+    catch(e){ $('fitErr').textContent=L().errFit+e.message; }
+  }
+
+  // ---------------- language ----------------
+  function applyMatchTitle(){
+    const v=$('matchLabel').value.trim();
+    $('matchEcho').textContent=v;
+    document.title=v?('Poisson Bench · '+v):'Poisson Bench';
+  }
+  function setLang(l){
+    lang=l; document.documentElement.lang=l; const D=L();
+    document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.getAttribute('data-i18n'); if(D[k]!=null) el.textContent=D[k]; });
+    document.querySelectorAll('[data-i18n-html]').forEach(el=>{ const k=el.getAttribute('data-i18n-html'); if(D[k]!=null) el.innerHTML=D[k]; });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ const k=el.getAttribute('data-i18n-ph'); if(D[k]!=null) el.placeholder=D[k]; });
+    $('langBtn').textContent = (l==='en'?'中文':'EN');
+    $('hlVal').textContent=$('halfLife').value+D.dayUnit;
+    $('promptText').value=D.prompt;
+    $('docsEN').style.display = (l==='en'?'grid':'none');
+    $('docsZH').style.display = (l==='zh'?'grid':'none');
+    applyMatchTitle();
+    if(FIT) renderFit();
+    buildSensOptions(); render();
+  }
+
+  // ---------------- bind ----------------
+  $('langBtn').addEventListener('click',()=>setLang(lang==='en'?'zh':'en'));
+  ['lh','la','rho','maxg'].forEach(id=>$(id).addEventListener('input',render));
+  ['homeName','awayName'].forEach(id=>$(id).addEventListener('input',()=>{buildSensOptions();render();}));
+  $('matchLabel').addEventListener('input',applyMatchTitle);
+  $('sensPick').addEventListener('change',()=>{ const lh=parseFloat($('lh').value),la=parseFloat($('la').value),rho=parseFloat($('rho').value),maxg=parseInt($('maxg').value); renderSens(lh,la,rho,maxg,teams()); });
+  document.querySelectorAll('.quick button[data-lh]').forEach(b=>{ b.addEventListener('click',()=>{ $('lh').value=b.dataset.lh; $('la').value=b.dataset.la; render(); }); });
+  $('loadDemo').addEventListener('click',()=>{
+    $('matchLabel').value=DEMO.label; applyMatchTitle();
+    $('homeName').value=DEMO.h; $('awayName').value=DEMO.a; $('lh').value=DEMO.lh; $('la').value=DEMO.la;
+    MARKETS.forEach(g=>g.items.forEach(it=>{ oddsStore[it.id]=DEMO.odds[it.id]||''; }));
+    buildSensOptions(); render();
+  });
+  $('clearOdds').addEventListener('click',()=>{ MARKETS.forEach(g=>g.items.forEach(it=>{ oddsStore[it.id]=''; })); render(); });
+  $('loadSample').addEventListener('click',()=>{ $('data').value=SAMPLE; runFit(); });
+  $('doFit').addEventListener('click', runFit);
+  $('halfLife').addEventListener('input',e=>{ $('hlVal').textContent=e.target.value+L().dayUnit; if(FIT && $('data').value.trim()) runFit(); });
+  $('pickHome').addEventListener('change',updateLamPreview);
+  $('pickAway').addEventListener('change',updateLamPreview);
+  $('applyFit').addEventListener('click',applyFit);
+  $('copyPrompt').addEventListener('click',async()=>{
+    const txt=$('promptText').value;
+    try{ await navigator.clipboard.writeText(txt); }catch(e){ $('promptText').select(); document.execCommand('copy'); }
+    $('copyOk').textContent='✓'; setTimeout(()=>{$('copyOk').textContent='';},2000);
+  });
+
+  setLang('en');
+})();
+</script>
+</body>
+</html>
